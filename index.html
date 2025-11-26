@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrated Conveyor & Drive Designer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #2b6cb0; --accent: #dd6b20; --bg: #f7fafc; --panel: #ffffff; --text: #2d3748; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        /* Header & Tabs */
+        header { text-align: center; margin-bottom: 20px; }
+        h1 { color: var(--primary); font-weight: 800; }
+        .tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { padding: 12px 30px; border: none; background: #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(43, 108, 176, 0.3); }
+
+        /* Layout */
+        .dashboard { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        .panel { background: var(--panel); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .full-width { grid-column: 1 / -1; }
+        .hidden { display: none; }
+
+        /* Inputs */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: #718096; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.95rem; }
+        select:focus, input:focus { border-color: var(--primary); outline: none; }
+
+        /* Visualization */
+        .vis-container { background: white; border-radius: 12px; height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; border: 1px solid #e2e8f0; }
+        svg { width: 100%; height: 100%; }
+
+        /* Results */
+        .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px; margin-top: 20px; }
+        .metric-card { background: #ebf8ff; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); }
+        .metric-val { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .metric-label { font-size: 0.8rem; color: #4a5568; }
+
+        /* Integration Banner */
+        .integration-banner { background: #c6f6d5; color: #22543d; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1><i class="fas fa-industry"></i> Plant Design Suite</h1>
+        <p>Unified CEMA Conveyor & Drive Coupling Designer</p>
+    </header>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('conveyor')"><i class="fas fa-dolly-flatbed"></i> Conveyor System</button>
+        <button class="tab-btn" onclick="switchTab('coupling')"><i class="fas fa-link"></i> Drive Coupling</button>
+    </div>
+
+    <div id="tab-conveyor" class="dashboard">
+        <div class="panel">
+            <h3><i class="fas fa-sliders-h"></i> Parameters</h3>
+            
+            <div class="input-group">
+                <label>Material</label>
+                <select id="c_material" onchange="calcConveyor()">
+                    <option value="Sand">Sand (1600 kg/m³)</option>
+                    <option value="Gravel">Gravel (1500 kg/m³)</option>
+                    <option value="Coal">Coal (1100 kg/m³)</option>
+                    <option value="Iron Ore">Iron Ore (2500 kg/m³)</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Target Capacity (Tons/Hour)</label>
+                <input type="number" id="c_tph" value="250" oninput="calcConveyor()">
+            </div>
+
+            <div class="input-group">
+                <label>Conveyor Length (m)</label>
+                <input type="number" id="c_length" value="60" oninput="calcConveyor()">
+            </div>
+
+            <div class="input-group">
+                <label>Inclination Angle (°)</label>
+                <input type="number" id="c_angle" value="12" max="30" oninput="calcConveyor()">
+            </div>
+
+            <div class="input-group">
+                <label>Drive Roller Dia (m)</label>
+                <input type="number" id="c_roller" value="0.63" step="0.01" oninput="calcConveyor()">
+            </div>
+            
+             <div class="input-group">
+                <label>Motor RPM</label>
+                <input type="number" id="c_rpm" value="1440" oninput="calcConveyor()">
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3><i class="fas fa-chart-area"></i> System Visualization</h3>
+            <div class="vis-container">
+                <svg id="conveyorSvg" viewBox="0 0 600 300">
+                    </svg>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-val" id="res_width">---</div>
+                    <div class="metric-label">Min Belt Width</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="res_speed">---</div>
+                    <div class="metric-label">Belt Speed (m/s)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="res_power">---</div>
+                    <div class="metric-label">Motor Power (kW)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="res_torque">---</div>
+                    <div class="metric-label">Shaft Torque (Nm)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-coupling" class="dashboard hidden">
+        <div class="panel full-width">
+            <div class="integration-banner">
+                <i class="fas fa-check-circle"></i> 
+                <span>Data Linked: Power and Torque imported from Conveyor Module.</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3><i class="fas fa-cog"></i> Coupling Config</h3>
+            
+            <div class="input-group">
+                <label>Coupling Type</label>
+                <select id="coup_type" onchange="calcCoupling()">
+                    <option value="rigid">Rigid (Muff)</option>
+                    <option value="flange">Rigid Flange</option>
+                    <option value="flexible">Flexible Pin</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label>Input Power (kW)</label>
+                <input type="number" id="coup_power" readonly style="background:#edf2f7; color:#718096;">
+            </div>
+
+            <div class="input-group">
+                <label>Input Speed (RPM)</label>
+                <input type="number" id="coup_rpm" readonly style="background:#edf2f7; color:#718096;">
+            </div>
+
+            <div class="input-group">
+                <label>Service Factor</label>
+                <input type="number" id="coup_sf" value="1.5" step="0.1" oninput="calcCoupling()">
+            </div>
+
+            <div class="input-group">
+                <label>Shaft Allow. Shear (MPa)</label>
+                <input type="number" id="coup_shear" value="40" oninput="calcCoupling()">
+            </div>
+        </div>
+
+        <div class="panel">
+            <h3><i class="fas fa-drafting-compass"></i> Component Sizing</h3>
+            <div class="vis-container">
+                <svg id="couplingSvg" viewBox="-100 -100 200 200">
+                    </svg>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-val" id="out_shaft">---</div>
+                    <div class="metric-label">Req. Shaft Dia (mm)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="out_outer">---</div>
+                    <div class="metric-label">Outer Dia / PCD (mm)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val" id="out_detail">---</div>
+                    <div class="metric-label" id="lbl_detail">Bolt/Key Size</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- CONVEYOR LOGIC (Based on User's Python) ---
+    const MATERIALS = {
+        "Sand": { dens: 1600, k: 200 },
+        "Gravel": { dens: 1500, k: 250 },
+        "Coal": { dens: 1100, k: 180 },
+        "Iron Ore": { dens: 2500, k: 300 }
+    };
+
+    let sharedData = { power: 0, rpm: 0, torque: 0 };
+
+    function calcConveyor() {
+        const matName = document.getElementById('c_material').value;
+        const mat = MATERIALS[matName];
+        const tph = parseFloat(document.getElementById('c_tph').value);
+        const len = parseFloat(document.getElementById('c_length').value);
+        const ang = parseFloat(document.getElementById('c_angle').value);
+        const rollerD = parseFloat(document.getElementById('c_roller').value);
+        const rpm = parseFloat(document.getElementById('c_rpm').value);
+
+        // 1. Belt Speed (v = pi * D * N / 60)
+        let v = (Math.PI * rollerD * rpm) / 60;
+        if(v > 5.0) v = 5.0; // Limit from user code
+
+        // 2. Capacity (m3/hr) & Width
+        // User code: width = sqrt(capacity / (k * speed))
+        // Capacity in code was based on load_kg. Here we use TPH -> kg/hr
+        const load_kg_hr = tph * 1000;
+        const cap_m3_hr = load_kg_hr / mat.dens;
+        // CEMA approx width (m)
+        const width = Math.sqrt(cap_m3_hr / (mat.k * 3600 * v)); // Adjusted for time units 
+
+        // 3. Forces (Pull)
+        const g = 9.81;
+        const mass_per_sec = load_kg_hr / 3600;
+        const friction = 0.04; // Dusty environment average
+        
+        // Simple Physics Model
+        // F_gravity = m * g * sin(theta)
+        // F_friction = m * g * cos(theta) * mu
+        // Note: This is simplified. Real CEMA is complex. Using User's logic:
+        // horizontal = friction * g * load; vertical = g * load * sin(ang)
+        const f_fric = friction * g * mass_per_sec * len; 
+        const f_lift = g * mass_per_sec * (len * Math.sin(ang * Math.PI/180));
+        const f_total = f_fric + f_lift;
+
+        // 4. Torque & Power
+        const torque = (f_total * rollerD) / 2;
+        const efficiency = 0.9 * 0.87; // Gearbox * System
+        const power_watts = (torque * rpm * Math.PI / 30) / efficiency;
+        const power_kw = power_watts / 1000;
+
+        // Update UI
+        document.getElementById('res_width').innerText = (width * 1000).toFixed(0) + " mm";
+        document.getElementById('res_speed').innerText = v.toFixed(2);
+        document.getElementById('res_power').innerText = power_kw.toFixed(1);
+        document.getElementById('res_torque').innerText = torque.toFixed(0);
+
+        // Update Shared Data
+        sharedData.power = power_kw;
+        sharedData.rpm = rpm;
+        sharedData.torque = torque;
+
+        // Sync inputs on Coupling tab
+        document.getElementById('coup_power').value = power_kw.toFixed(1);
+        document.getElementById('coup_rpm').value = rpm;
+
+        drawConveyor(len, ang);
+        calcCoupling(); // Auto-calc coupling
+    }
+
+    function drawConveyor(len, ang) {
+        const svg = document.getElementById('conveyorSvg');
+        // Normalize length for SVG (max width 500)
+        const scale = 400 / len;
+        const x1 = 50, y1 = 250;
+        const dx = len * Math.cos(ang * Math.PI/180) * scale;
+        const dy = len * Math.sin(ang * Math.PI/180) * scale;
+        const x2 = x1 + dx;
+        const y2 = y1 - dy;
+
+        let html = `
+            <line x1="20" y1="250" x2="580" y2="250" stroke="#cbd5e0" stroke-width="2" stroke-dasharray="5,5" />
+            <line x1="${x1}" y1="${y1-10}" x2="${x2}" y2="${y2-10}" stroke="#2d3748" stroke-width="6" />
+            <line x1="${x1}" y1="${y1+10}" x2="${x2}" y2="${y2+10}" stroke="#2d3748" stroke-width="2" />
+            <circle cx="${x1}" cy="${y1}" r="15" fill="#dd6b20" />
+            <circle cx="${x2}" cy="${y2}" r="15" fill="#2b6cb0" />
+            <line x1="${x1}" y1="${y1}" x2="${x1}" y2="250" stroke="#a0aec0" stroke-width="2" />
+            <line x1="${x2}" y1="${y2}" x2="${x2}" y2="250" stroke="#a0aec0" stroke-width="2" />
+            <text x="${(x1+x2)/2}" y="${(y1+y2)/2 - 20}" fill="#2d3748" font-size="12" text-anchor="middle">${len}m Length</text>
+        `;
+        svg.innerHTML = html;
+    }
+
+    // --- COUPLING LOGIC (Based on User's Python) ---
+    function calcCoupling() {
+        const type = document.getElementById('coup_type').value;
+        const P = parseFloat(document.getElementById('coup_power').value) || 0;
+        const N = parseFloat(document.getElementById('coup_rpm').value) || 1;
+        const SF = parseFloat(document.getElementById('coup_sf').value);
+        const Tau = parseFloat(document.getElementById('coup_shear').value);
+
+        if(P === 0) return;
+
+        // T_design = (P * 1000 * 60) / (2 * pi * N) * ServiceFactor
+        const T_des = (P * 1000 * 60 * SF) / (2 * Math.PI * N); // Nm
+
+        // Shaft Dia: d = ((16 * T) / (pi * tau))^0.33
+        // T must be in N-mm for MPa calc -> T * 1000
+        const d_raw = Math.pow((16 * T_des * 1000) / (Math.PI * Tau), 1/3);
+        const d = Math.ceil(d_raw); // Round up to nearest mm
+
+        let out2 = 0, out3 = "";
+
+        if (type === 'rigid') {
+            // Muff logic
+            out2 = (2 * d) + 13; // Approx Sleeve OD = 2d + 13mm
+            const k_w = Math.ceil(d/4);
+            const k_h = Math.ceil(d/4); // Simplified square key
+            out3 = `Key: ${k_w}x${k_h}mm`;
+            document.getElementById('lbl_detail').innerText = "Key Size";
+            drawCoupling('rigid', d);
+        } else if (type === 'flange') {
+            const D_pcd = 3 * d; 
+            const n_bolts = 4;
+            // Bolt dia logic: d1 = sqrt( (4*T)/(pi * D * n * tau_bolt) )
+            // Assume Bolt Tau = Shaft Tau for simplicity or 30MPa
+            const d_bolt = Math.sqrt((4 * T_des * 1000) / (Math.PI * D_pcd * n_bolts * 30));
+            
+            out2 = D_pcd.toFixed(0); // PCD
+            out3 = `4x M${Math.ceil(d_bolt)}`;
+            document.getElementById('lbl_detail').innerText = "Bolt Spec";
+            drawCoupling('flange', d);
+        } else {
+            // Flexible logic
+            const D_pin = 3.5 * d; // PCD
+            const n_pins = 6;
+            // Bush dia logic
+            const bearing_press = 0.8; // MPa
+            // T = n * d_pin * L_bush * P * R
+            // Simplified from user code: bush_dia = (2T) / (n * D * Pb)??
+            // Re-evaluating user formula: bush_diameter = ((torque * 2) / (n_pins * D1 * bearing_pressure_bush))
+            // This calculates Area required, assuming bush length = 1?
+            // Let's assume Bush Length = d shaft.
+            // Force = T / (D_pin/2). Area = Force / Press. Area = d_bush * d_shaft
+            const Force = (T_des * 1000) / (D_pin/2);
+            const Area = Force / bearing_press;
+            const d_bush = Area / d;
+
+            out2 = D_pin.toFixed(0);
+            out3 = `Bush Ø: ${Math.ceil(d_bush)}mm`;
+            document.getElementById('lbl_detail').innerText = "Bush Diameter";
+            drawCoupling('flexible', d);
+        }
+
+        document.getElementById('out_shaft').innerText = d;
+        document.getElementById('out_outer').innerText = out2;
+        document.getElementById('out_detail').innerText = out3;
+    }
+
+    function drawCoupling(type, d) {
+        const svg = document.getElementById('couplingSvg');
+        // Center 0,0
+        let html = "";
+        
+        // Shaft
+        html += `<circle cx="0" cy="0" r="40" fill="#e2e8f0" stroke="#4a5568" stroke-width="2"/>`;
+        html += `<text x="0" y="5" text-anchor="middle" font-size="10" fill="#4a5568">Ø${d}</text>`;
+
+        if(type === 'rigid') {
+            // Sleeve
+            html += `<circle cx="0" cy="0" r="70" fill="none" stroke="#2b6cb0" stroke-width="4" stroke-dasharray="5,2"/>`;
+            // Key
+            html += `<rect x="-10" y="-45" width="20" height="10" fill="#dd6b20"/>`;
+        } else if (type === 'flange') {
+            // Flange OD
+            html += `<circle cx="0" cy="0" r="80" fill="none" stroke="#2b6cb0" stroke-width="2"/>`;
+            // Bolts
+            const pcdR = 60;
+            for(let i=0; i<4; i++) {
+                const ang = (i * 90) * Math.PI/180;
+                html += `<circle cx="${Math.cos(ang)*pcdR}" cy="${Math.sin(ang)*pcdR}" r="5" fill="#2d3748"/>`;
+            }
+        } else if (type === 'flexible') {
+             // Flange OD
+            html += `<circle cx="0" cy="0" r="85" fill="none" stroke="#38a169" stroke-width="2"/>`;
+            // Pins
+            const pcdR = 65;
+            for(let i=0; i<6; i++) {
+                const ang = (i * 60) * Math.PI/180;
+                html += `<circle cx="${Math.cos(ang)*pcdR}" cy="${Math.sin(ang)*pcdR}" r="8" fill="#c6f6d5" stroke="#22543d"/>`;
+            }
+        }
+
+        svg.innerHTML = html;
+    }
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.dashboard').forEach(d => d.classList.add('hidden'));
+        
+        document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+        document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+        if(tab === 'coupling') calcCoupling();
+    }
+
+    // Init
+    calcConveyor();
+</script>
+
+</body>
+</html>
