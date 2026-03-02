@@ -365,7 +365,8 @@
         const ang = parseFloat(document.getElementById('c_angle').value) || 0;
         const motor_rpm = parseFloat(document.getElementById('c_motor_rpm').value) || 1440;
         const mu = parseFloat(document.getElementById('c_lagging').value); 
-        const theta_deg = parseFloat(document.getElementById('c_wrap').value) || 180;
+        const theta_input = parseFloat(document.getElementById('c_wrap').value);
+        const theta_deg = Number.isFinite(theta_input) ? Math.max(theta_input, 1) : 180;
 
         // B. Velocity & Gearbox Logic
         // Real belt speeds are 1.0 - 4.0 m/s. 
@@ -380,12 +381,13 @@
         
         // Calculate Pulley RPM needed for design speed
         const pulley_rpm = (v_design * 60) / (Math.PI * D_pulley);
+        const safe_motor_rpm = motor_rpm > 0 ? motor_rpm : 1440;
         
         // Gearbox Ratio
-        const ratio = motor_rpm / pulley_rpm;
+        const ratio = safe_motor_rpm / pulley_rpm;
         
         // Update Gearbox Message
-        const msg = (motor_rpm > 200) 
+        const msg = (safe_motor_rpm > 200) 
             ? `<i class="fas fa-cogs"></i> Auto-Calculated Gearbox Ratio: ${ratio.toFixed(1)}:1` 
             : "";
         document.getElementById('gearbox_msg').innerHTML = msg;
